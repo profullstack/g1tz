@@ -7,12 +7,13 @@
  * Files, branches and log on the left; the diff for whatever is selected on
  * the right. Space stages and unstages.
  */
-import { createApp, themes, type Container, type KeyEvent, type Theme } from "@profullstack/hqtui";
+import { createApp, elevate, themes, type Container, type KeyEvent, type Theme } from "@profullstack/hqtui";
 import { resolve } from "node:path";
 import {
-  diffLineKind, fileDiff, git, readRepo, stage, unstage,
+  fileDiff, git, readRepo, stage, unstage,
   type FileChange, type Repo,
 } from "./git.ts";
+import { highlightDiff, type DiffPalette } from "./diff.ts";
 
 export type PaneName = "files" | "branches" | "log";
 
@@ -146,6 +147,24 @@ async function main(): Promise<void> {
   await app.start();
 }
 
+
+/** Diff colours from the active theme, so highlighting follows the theme. */
+export function diffPalette(theme: Theme): DiffPalette {
+  return {
+    add: theme.success,
+    remove: theme.danger,
+    hunk: theme.accent,
+    meta: theme.muted,
+    context: theme.foreground,
+    // A background wash rather than another foreground: the line already
+    // carries its add/remove colour, and a second one would compete with it.
+    // `elevate` lifts the surface a little so the wash reads on both a light
+    // and a dark palette.
+    addEmphasis: elevate(theme, 0.18),
+    removeEmphasis: elevate(theme, 0.18),
+  };
+}
+
 export function view(
   { ui, theme, height }: { ui: Container; theme: Theme; height: number },
   state: State,
@@ -237,10 +256,13 @@ export function view(
         p.label(state.pane === "branches" ? "Select a file or a commit." : "No changes.");
         return;
       }
-      // One text() per line so each can take the colour its prefix implies.
-      // A single styled call would be better; that wants hqtui#60.
-      for (const line of state.diff.slice(state.diffOffset, state.diffOffset + 400)) {
-        p.text(line, { fg: theme[diffLineKind(line)], size: 1 });
+      // Spans, so the words that actually differ can be emphasised inside an
+      // otherwise green or red line. Highlighting runs over the whole diff
+      // rather than the visible slice, because pairing a removal with its
+      // addition needs to see both even when one is scrolled off.
+      const highlighted = highlightDiff(state.diff, diffPalette(theme));
+      for (const line of highlighted.slice(state.diffOffset, state.diffOffset + 400)) {
+        p.text(line.length === 0 ? " " : line, { size: 1 });
       }
     });
   });
