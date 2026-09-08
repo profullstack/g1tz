@@ -1,0 +1,40 @@
+{
+  "name": "g1tz",
+  "version": "0.1.0",
+  "description": "A git TUI that shows you the repository, not a menu of git commands.",
+  "license": "MIT",
+  "type": "module",
+  "homepage": "https://github.com/profullstack/g1tz",
+  "bin": {
+    "g1tz": "./bin/g1tz.mjs"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "bun": ">=1.1",
+    "node": ">=22.6"
+  },
+  "scripts": {
+    "start": "bun src/main.ts",
+    "build": "bun x tsc -p tsconfig.json",
+    "typecheck": "bun x tsc -p tsconfig.json --noEmit",
+    "test": "bun test test"
+  },
+  "dependencies": {
+    "@profullstack/hqtui": "^0.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26",
+    "typescript": "^7.0.2"
+  },
+  "keywords": ["git", "tui", "terminal", "lazygit", "hqtui"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/profullstack/g1tz.git"
+  }
+}
