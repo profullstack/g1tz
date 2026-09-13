@@ -24,6 +24,12 @@ import {
 
 const NOW = new Date("2026-09-13T12:00:00Z");
 
+// Read no global or system git config, so a developer's commit.gpgsign or
+// init.templateDir cannot reach these repositories. git() spreads process.env
+// at call time, so setting it here covers every invocation in the file.
+process.env["GIT_CONFIG_GLOBAL"] = "/dev/null";
+process.env["GIT_CONFIG_NOSYSTEM"] = "1";
+
 /** A throwaway repository, so these tests exercise real git rather than mocks. */
 function scratch(): string {
   const dir = mkdtempSync(join(tmpdir(), "g1tz-pulse-"));
@@ -223,4 +229,51 @@ test("a detached head has no branch name", () => {
   const dir = history();
   git(dir, ["checkout", "-q", "--detach"]);
   assert.equal(readPulse(dir, "week", NOW).branch, "");
+});
+
+test("a file named HEAD in the root does not make the revision ambiguous", () => {
+  const dir = scratch();
+  write(dir, "HEAD", "not a ref\n");
+  commit(dir, "a file called HEAD", "2026-09-12T10:00:00Z");
+  const p = readPulse(dir, "week", NOW);
+  assert.equal(p.commits.length, 1);
+  assert.equal(p.filesChanged, 1);
+  assert.deepEqual(p.files.map((f) => f.path), ["HEAD"]);
+  assert.deepEqual(p.errors, []);
+});
+
+test("an orphan branch being born still counts the other branches' commits", () => {
+  const dir = history();
+  git(dir, ["checkout", "-q", "--orphan", "gh-pages"]);
+  const p = readPulse(dir, "week", NOW);
+  assert.equal(p.branch, "gh-pages");
+  assert.equal(p.commits.length, 0);
+  assert.equal(p.allBranchCommits, 3);
+  assert.deepEqual(p.errors, []);
+});
+
+test("a shallow clone does not report the whole tree as the period's change", () => {
+  const source = scratch();
+  write(source, "a.txt", "old\n");
+  commit(source, "long ago", "2026-08-01T10:00:00Z");
+  write(source, "b.txt", "new\n");
+  commit(source, "this week", "2026-09-12T10:00:00Z");
+  const clone = join(mkdtempSync(join(tmpdir(), "g1tz-shallow-")), "clone");
+  // file:// rather than a path: git ignores --depth for a plain local clone.
+  const r = spawnSync("git", ["clone", "-q", "--depth", "1", `file://${source}`, clone], { encoding: "utf8", env: process.env });
+  assert.equal(r.status, 0, r.stderr);
+  const p = readPulse(clone, "week", NOW);
+  assert.equal(p.commits.length, 1, "the grafted commit is in range");
+  assert.equal(p.filesChanged, 0, "but the tree before it is not in the clone, so nothing is claimed");
+  assert.deepEqual(p.files, []);
+  assert.equal(p.errors.length, 1);
+  assert.match(p.errors[0]?.message ?? "", /shallow/);
+});
+
+test("signature verification output never reaches the hashes", () => {
+  const dir = history();
+  // The exact config the bug needs: every log call would print "No signature" ahead of each record.
+  git(dir, ["config", "log.showSignature", "true"]);
+  const p = readPulse(dir, "week", NOW);
+  assert.ok(p.commits.every((c) => /^[0-9a-f]{40}$/.test(c.hash)), JSON.stringify(p.commits.map((c) => c.hash)));
 });

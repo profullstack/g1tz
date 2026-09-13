@@ -184,7 +184,9 @@ export function readRepo(cwd: string, logLimit = 200): Repo | null {
   const status = parseStatus(
     run(["status", "--porcelain=v2", "--branch", "--untracked-files=all", "-z"]),
   );
-  const commits = parseLog(run(["log", `--pretty=format:${LOG_FORMAT}%x00`, "-n", String(logLimit)]));
+  // --no-show-signature: with log.showSignature set, git writes the
+  // verification text on stdout ahead of every record, glued to the hash.
+  const commits = parseLog(run(["log", "--no-show-signature", `--pretty=format:${LOG_FORMAT}%x00`, "-n", String(logLimit)]));
   const branches = parseBranches(run(["for-each-ref", "--sort=-committerdate",
     `--format=${BRANCH_FORMAT}`, "refs/heads"]));
 

@@ -343,23 +343,33 @@ export function readPulse(root: string, range: RangeKey, now: Date = new Date())
   // the pulse is then simply empty rather than a list of errors.
   const hasHead = git(root, ["rev-parse", "--verify", "--quiet", "HEAD"]) !== null;
 
+  // "--" after HEAD everywhere: a file named HEAD in the root would otherwise
+  // make the revision ambiguous. --no-show-signature: with log.showSignature
+  // set, git writes the verification text on stdout ahead of every record.
   const commits = hasHead
-    ? parsePulseLog(run(["log", `--format=${LOG_FORMAT}%x00`, `--max-count=${COMMIT_CAP}`, ...sinceArgs, "HEAD"]))
+    ? parsePulseLog(run(["log", "--no-show-signature", `--format=${LOG_FORMAT}%x00`, `--max-count=${COMMIT_CAP}`, ...sinceArgs, "HEAD", "--"]))
     : [];
-  const allBranchCommits = hasHead
-    ? Number(run(["rev-list", "--branches", "--no-merges", "--count", ...sinceArgs]).trim()) || 0
-    : 0;
+  // Not gated on HEAD: an orphan branch being born has no HEAD commit while the other branches still moved.
+  const allBranchCommits = Number(run(["rev-list", "--branches", "--no-merges", "--count", ...sinceArgs]).trim()) || 0;
 
   // The tree at the start of the period is the first parent of the oldest
   // first-parent commit in range: what the branch pointed at before any of
   // this landed, whether it arrived by merge, rebase or fast-forward. All
-  // time, and a root commit inside the period, diff from the empty tree.
+  // time, and a root commit inside the period, diff from the empty tree. A
+  // shallow clone's grafted commit has no parent either, but that is not a
+  // root: the tree before the period is simply not in this clone.
   let boundary: string | null = null;
   if (hasHead) {
     if (!since) boundary = EMPTY_TREE;
     else {
-      const oldest = run(["rev-list", "--first-parent", ...sinceArgs, "HEAD"]).trim().split("\n").filter(Boolean).at(-1);
-      if (oldest) boundary = git(root, ["rev-parse", "--verify", "--quiet", `${oldest}^`])?.trim() || EMPTY_TREE;
+      const oldest = run(["rev-list", "--first-parent", ...sinceArgs, "HEAD", "--"]).trim().split("\n").filter(Boolean).at(-1);
+      if (oldest) {
+        const parent = git(root, ["rev-parse", "--verify", "--quiet", `${oldest}^`])?.trim();
+        if (parent) boundary = parent;
+        else if (git(root, ["rev-parse", "--is-shallow-repository"])?.trim() === "true") {
+          errors.push({ command: "git diff", message: "shallow clone: the tree before the period is not available" });
+        } else boundary = EMPTY_TREE;
+      }
     }
   }
   let filesChanged = 0;
@@ -367,8 +377,8 @@ export function readPulse(root: string, range: RangeKey, now: Date = new Date())
   let deletions = 0;
   let files: PulseFile[] = [];
   if (boundary) {
-    ({ filesChanged, additions, deletions } = parseShortstat(run(["diff", "--shortstat", "-M", boundary, "HEAD"])));
-    files = parseNumstat(run(["diff", "--numstat", "-z", "-M", boundary, "HEAD"]))
+    ({ filesChanged, additions, deletions } = parseShortstat(run(["diff", "--shortstat", "-M", boundary, "HEAD", "--"])));
+    files = parseNumstat(run(["diff", "--numstat", "-z", "-M", boundary, "HEAD", "--"]))
       .sort((a, b) => churn(b) - churn(a) || a.path.localeCompare(b.path))
       .slice(0, FILE_CAP);
   }

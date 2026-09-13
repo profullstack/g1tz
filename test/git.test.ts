@@ -7,6 +7,11 @@ import {
   diffLineKind, git, parseBranches, parseLog, parseStatus, readRepo, repoRoot, stage, unstage,
 } from "../src/git.ts";
 
+// Read no global or system git config, so a developer's commit.gpgsign or
+// init.templateDir cannot reach these repositories.
+process.env["GIT_CONFIG_GLOBAL"] = "/dev/null";
+process.env["GIT_CONFIG_NOSYSTEM"] = "1";
+
 /** A throwaway repository, so these tests exercise real git rather than mocks. */
 function scratch(): string {
   const dir = mkdtempSync(join(tmpdir(), "g1tz-"));
@@ -94,6 +99,8 @@ test("every commit's hash read from a real repository is usable by git show", ()
   writeFileSync(join(dir, "a.txt"), "two\n");
   git(dir, ["add", "."]);
   git(dir, ["commit", "-qm", "second"]);
+  // With this set, git prints signature verification on stdout ahead of every record.
+  git(dir, ["config", "log.showSignature", "true"]);
   const repo = readRepo(dir);
   assert.ok(repo);
   assert.equal(repo.commits.length, 2);
