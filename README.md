@@ -1,12 +1,28 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/profullstack/g1tz/main/logo.svg" alt="g1tz — a Git client for your terminal" width="720">
+</p>
+
 # g1tz
 
 A git TUI that shows you the repository, not a menu of git commands.
 
+## Quick start
+
+Run g1tz inside an existing Git repository, or pass the path to one:
+
+```sh
+cd /path/to/your/repository
+bunx @profullstack/g1tz
+
+# Or open a repository from any directory:
+bunx @profullstack/g1tz /path/to/your/repository
+
+# Optional global install:
+npm i -g @profullstack/g1tz
+g1tz /path/to/your/repository
 ```
-bunx @profullstack/g1tz          # the repository you are standing in
-bunx @profullstack/g1tz ~/proj   # somewhere else
-npm i -g @profullstack/g1tz      # then just g1tz
-```
+
+A `not a git repository` message means the current directory (or the path you passed) is not inside a Git repository. For example, running the bare command from `~` will fail unless your home directory is itself a Git repository. Pass a project path instead.
 
 The package is scoped because npm refuses the bare name ("too similar to got, gts"); the command it installs is still `g1tz`.
 
@@ -88,3 +104,5 @@ Known rough edges:
 ## Licence
 
 MIT
+
+Logo and favicon assets are available in [SVG](https://raw.githubusercontent.com/profullstack/g1tz/main/logo.svg) and [PNG](https://raw.githubusercontent.com/profullstack/g1tz/main/logo.png), with matching [SVG](https://raw.githubusercontent.com/profullstack/g1tz/main/favicon.svg) and [PNG](https://raw.githubusercontent.com/profullstack/g1tz/main/favicon.png) favicons. See [brand asset provenance](BRANDING.md) for generation prompts and vector details.
