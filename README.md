@@ -3,9 +3,12 @@
 A git TUI that shows you the repository, not a menu of git commands.
 
 ```
-bunx g1tz          # the repository you are standing in
-bunx g1tz ~/proj   # somewhere else
+bunx @profullstack/g1tz          # the repository you are standing in
+bunx @profullstack/g1tz ~/proj   # somewhere else
+npm i -g @profullstack/g1tz      # then just g1tz
 ```
+
+The package is scoped because npm refuses the bare name ("too similar to got, gts"); the command it installs is still `g1tz`.
 
 ```
  g1tz  main                    origin/main ↓1                        ~/hqtui  Tab panes  Space stage  q quit
@@ -43,8 +46,8 @@ Files, branches and log down the left. The diff on the right follows whatever yo
 `p` flips to Pulse: what moved in this repository over a period, the way GitHub's Insights > Pulse tab shows it, but for the repository you are standing in and without leaving the terminal.
 
 ```
-bunx g1tz pulse                 # start on the Pulse screen, last week
-bunx g1tz pulse --range month   # day, week, month, quarter, year, all
+bunx @profullstack/g1tz pulse                 # start on the Pulse screen, last week
+bunx @profullstack/g1tz pulse --range month   # day, week, month, quarter, year, all
 ```
 
 Three sources, each optional beyond the first:
