@@ -51,9 +51,13 @@ export interface GitHubPulse {
   partial: boolean;
 }
 
-/** https, ssh and scp-style GitHub remotes, with or without .git. Anything else is null. */
+/**
+ * https, ssh and scp-style GitHub remotes, with or without .git, including
+ * GitHub's "SSH over the HTTPS port" form (ssh.github.com:443) and an explicit
+ * port. Anything else is null.
+ */
 export function parseGitHubRemote(url: string): GitHubRepo | null {
-  const m = /^(?:https?:\/\/(?:[^@/]+@)?|git@|ssh:\/\/(?:git@)?)github\.com[/:]([^/\s]+)\/([^/\s]+?)(?:\.git)?\/?$/i.exec(url.trim());
+  const m = /^(?:https?:\/\/(?:[^@/]+@)?|git@|ssh:\/\/(?:git@)?)(?:ssh\.)?github\.com(?::\d+)?[/:]([^/\s]+)\/([^/\s]+?)(?:\.git)?\/?$/i.exec(url.trim());
   return m ? { owner: m[1] as string, name: m[2] as string } : null;
 }
 
@@ -76,8 +80,13 @@ export function ghInstalled(): boolean {
 }
 
 /** What to tell the user when gh could not answer. */
-export function ghErrorMessage(error: { code?: string | number | undefined; message: string }, stderr: string): string {
+export function ghErrorMessage(
+  error: { code?: string | number | null | undefined; signal?: string | null | undefined; killed?: boolean | undefined; message: string },
+  stderr: string,
+): string {
   if (error.code === "ENOENT") return "gh is not installed";
+  // `killed` is execFile's own timeout; a signal is gh dying to something else. Neither leaves anything on stderr.
+  if (error.killed || error.signal) return "GitHub did not answer in time (gh was stopped after 60 seconds)";
   const s = stderr.trim();
   if (/gh auth login|not logged in|authentication required|HTTP 401/i.test(s)) return "gh is not logged in (run gh auth login)";
   if (/rate limit/i.test(s)) return "GitHub API rate limit exceeded; try again later";
@@ -143,7 +152,15 @@ async function countStars(fetch: Fetch, name: string, total: number, cutoff: num
   let count = 0;
   for (let page = lastPage, used = 0; page >= 1; page--, used++) {
     if (used >= pages) return { count, partial: true };
-    const data = (await fetch(`repos/${name}/stargazers?per_page=100&page=${page}`, STAR_HEADERS)) as StarJson[];
+    let data: StarJson[];
+    try {
+      data = (await fetch(`repos/${name}/stargazers?per_page=100&page=${page}`, STAR_HEADERS)) as StarJson[];
+    } catch {
+      // GitHub refuses the stargazers list of a very large repository (facebook/react
+      // answers 404 on every page), and a rate limit can land here after everything
+      // else answered. The star count is the only casualty, not the whole read.
+      return { count, partial: true };
+    }
     if (!Array.isArray(data)) return { count, partial: false };
     for (let i = data.length - 1; i >= 0; i--) {
       if (Date.parse((data[i] as StarJson).starred_at) < cutoff) return { count, partial: false };
@@ -168,7 +185,10 @@ export async function readGitHubPulse(repo: GitHubRepo, since: Date | null, fetc
   const pulls = await walk<PullJson>(fetch, `repos/${name}/pulls?state=all&sort=updated&direction=desc&per_page=100`, budget.pulls, (p) => stale(p.updated_at));
   const sinceParam = since ? `&since=${since.toISOString()}` : "";
   const issues = await walk<IssueJson>(fetch, `repos/${name}/issues?state=all&sort=updated&direction=desc&per_page=100${sinceParam}`, budget.issues, (i) => stale(i.updated_at));
-  const releases = await walk<ReleaseJson>(fetch, `repos/${name}/releases?per_page=100`, budget.releases, (r) => stale(r.published_at ?? r.created_at));
+  // Releases are listed by the tagged commit's date, not by when they were
+  // published, so a release cut this week for an older tag sits below older
+  // ones: no early stop, the budget's pages are read and published_at decides.
+  const releases = await walk<ReleaseJson>(fetch, `repos/${name}/releases?per_page=100`, budget.releases, () => false);
   const stars = await countStars(fetch, name, info.stargazers_count ?? 0, cutoff, budget.stars);
 
   return {
@@ -183,7 +203,10 @@ export async function readGitHubPulse(repo: GitHubRepo, since: Date | null, fetc
     prsClosed: pulls.items.filter((p) => !p.merged_at && inRange(p.closed_at)).map((p) => item(p, p.closed_at as string)).sort(newest),
     issuesOpened: issues.items.filter((i) => !i.pull_request && inRange(i.created_at)).map((i) => item(i, i.created_at)).sort(newest),
     issuesClosed: issues.items.filter((i) => !i.pull_request && inRange(i.closed_at)).map((i) => item(i, i.closed_at as string)).sort(newest),
-    releases: releases.items.filter((r) => !r.draft).map((r) => ({ tag: r.tag_name, name: r.name ?? r.tag_name, at: r.published_at ?? r.created_at })),
+    releases: releases.items
+      .filter((r) => !r.draft && inRange(r.published_at))
+      .map((r) => ({ tag: r.tag_name, name: r.name ?? r.tag_name, at: r.published_at as string }))
+      .sort((a, b) => b.at.localeCompare(a.at)),
     newStars: stars.count,
     partial: pulls.partial || issues.partial || releases.partial || stars.partial,
   };

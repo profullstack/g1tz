@@ -253,19 +253,24 @@ async function main(): Promise<void> {
   }
   const state = createState(repo);
   if (cli.pulse) openPulse(state, cli.range);
-  const app = await createApp({ theme: themes.dark, title: "g1tz", quitKeys: ["ctrl+c"] });
+  // focusNavigation off: the app handles every key itself, and with it on,
+  // Enter or Space would activate whichever range button held hqtui's hidden
+  // focus (the first one) and silently switch the range to "day".
+  const app = await createApp({ theme: themes.dark, title: "g1tz", quitKeys: ["ctrl+c"], focusNavigation: false });
   const changed = (): void => app.invalidate();
   const actions: PulseActions = {
     pickRange: (key) => { pickRange(state, key); void startGitHub(state, changed); changed(); },
-    refresh: () => { refreshPulse(state); void startGitHub(state, changed); state.pulse.note = "refreshed"; changed(); },
+    // The re-read panels and the spinner are the acknowledgement; a sticky note here would mask the GitHub line.
+    refresh: () => { refreshPulse(state); void startGitHub(state, changed); changed(); },
     back: () => { state.screen = "repo"; changed(); },
     pulse: () => { openPulse(state); void startGitHub(state, changed); changed(); },
   };
   if (cli.pulse) void startGitHub(state, changed);
 
+  // No `q` here: on this screen q is the quarter range. Ctrl+C quits from
+  // anywhere, and p or Escape go back to the repository, where q quits.
   const pulseKey = (key: string): void => {
     switch (key) {
-      case "q": app.quit(); return;
       case "p": case "escape": actions.back(); return;
       case "r": actions.refresh(); return;
       case "up": scrollPulseFiles(state, -1); return;

@@ -58,8 +58,8 @@ Three sources, each optional beyond the first:
 | `d` `w` `m` `q` `y` `a` | Pick the range: day, week, month, quarter, year, all time. The range buttons are clickable too. |
 | `↑` `↓` `PgUp` `PgDn` | Scroll the files |
 | `r` | Read it again |
-| `p` `Esc` | Back to the repository |
-| `q` | Quit |
+| `p` `Esc` | Back to the repository, where `q` quits |
+| `Ctrl+C` | Quit |
 
 ## How it reads git
 

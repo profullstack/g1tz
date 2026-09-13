@@ -252,14 +252,17 @@ export function pulseView({ ui, theme, width, height, elapsed }: ViewArgs, state
     header.text("pulse", { fg: theme.accent, size: 7 });
     header.text(pulse ? pulse.branch || "(detached)" : "", { fg: theme.accent, size: 24 });
     header.text(label, { fg: theme.muted });
-    header.text(`${root}  d w m q y a range  p repo  q quit `, { fg: theme.muted, align: "right" });
+    header.text(`${root}  d w m q y a range  p repo  ctrl+c quit `, { fg: theme.muted, align: "right" });
   });
 
-  // One button per range, the current one lit, all clickable.
+  // One button per range, the current one lit, all clickable. `focused` is
+  // pinned off: the library would otherwise paint whichever button holds its
+  // focus index (the first) in the strong style, beside the real range.
   ui.buttons(
     RANGE_KEYS.map((k) => ({
       label: k,
       variant: (state.range === k ? "primary" : "ghost") as "primary" | "ghost",
+      focused: false,
       onPress: () => actions.pickRange(k),
     })),
     { size: 1 },
@@ -284,7 +287,7 @@ export function pulseView({ ui, theme, width, height, elapsed }: ViewArgs, state
       { key: "↑↓", label: "Files" },
       { key: "r", label: "Refresh", onPress: actions.refresh },
       { key: "p", label: "Repo", onPress: actions.back },
-      { key: "q", label: "Quit" },
+      { key: "ctrl+c", label: "Quit" },
     ],
     right: [{ label: state.note || githubLine(state, elapsed) }],
   });

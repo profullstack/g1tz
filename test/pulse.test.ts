@@ -79,6 +79,7 @@ test("range keys read every spelling people type", () => {
   assert.equal(parseRangeKey("24h"), "day");
   assert.equal(parseRangeKey("fortnight"), null);
   assert.equal(rangeForHotkey("m"), "month");
+  assert.equal(rangeForHotkey("q"), "quarter", "q is quarter on the pulse screen, not quit");
   assert.equal(rangeForHotkey("x"), null);
 });
 

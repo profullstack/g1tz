@@ -27,8 +27,40 @@ test("GitHub remotes are recognised in every spelling, and nothing else is", () 
   assert.deepEqual(parseGitHubRemote("ssh://git@github.com/profullstack/g1tz"), { owner: "profullstack", name: "g1tz" });
   assert.deepEqual(parseGitHubRemote("https://github.com/o/n/\n"), { owner: "o", name: "n" });
   assert.deepEqual(parseGitHubRemote("https://user@github.com/o/n"), { owner: "o", name: "n" });
+  assert.deepEqual(parseGitHubRemote("ssh://git@ssh.github.com:443/o/n.git"), { owner: "o", name: "n" }, "SSH over the HTTPS port");
+  assert.deepEqual(parseGitHubRemote("ssh://git@github.com:22/o/n.git"), { owner: "o", name: "n" });
+  assert.deepEqual(parseGitHubRemote("git@github.com:12345/n.git"), { owner: "12345", name: "n" }, "a numeric owner is not a port");
   assert.equal(parseGitHubRemote("https://gitlab.com/o/n.git"), null);
   assert.equal(parseGitHubRemote(""), null);
+});
+
+test("a stargazers page GitHub refuses costs the star count, not the read", async () => {
+  const { fetch } = fake({
+    "repos/o/r": { stargazers_count: 250000 },
+    "repos/o/r/pulls": [{ number: 1, title: "kept", user: { login: "ann" }, created_at: inside, updated_at: inside, closed_at: null, merged_at: null }],
+    "repos/o/r/issues": [],
+    "repos/o/r/releases": [],
+    "repos/o/r/stargazers": () => { throw new Error("repository not found on GitHub, or the gh login cannot see it"); },
+  });
+  const g = await readGitHubPulse({ owner: "o", name: "r" }, SINCE, fetch);
+  assert.equal(g.prsOpened.length, 1, "what was already fetched survives");
+  assert.equal(g.newStars, 0);
+  assert.equal(g.partial, true, "and the count is marked as a floor");
+});
+
+test("a release published in the period is found even when it is listed below older ones", async () => {
+  // GitHub lists releases by the tagged commit's date: a release cut this week for an old tag sits low.
+  const { fetch } = fake({
+    "repos/o/r": { stargazers_count: 0 },
+    "repos/o/r/pulls": [],
+    "repos/o/r/issues": [],
+    "repos/o/r/releases": [
+      { tag_name: "v1.0.0", name: "one", published_at: before, created_at: before },
+      { tag_name: "v0.9.1", name: "backport", published_at: inside, created_at: "2026-07-01T00:00:00Z" },
+    ],
+  });
+  const g = await readGitHubPulse({ owner: "o", name: "r" }, SINCE, fetch);
+  assert.deepEqual(g.releases.map((r) => r.tag), ["v0.9.1"]);
 });
 
 test("pull requests, issues, releases and stars are sorted into the period", async () => {
@@ -105,4 +137,6 @@ test("gh's failures are turned into one plain sentence", () => {
   assert.match(ghErrorMessage(err(), "gh: API rate limit exceeded (HTTP 403)"), /rate limit/);
   assert.equal(ghErrorMessage(err(), "something else\nmore"), "something else");
   assert.equal(ghErrorMessage(err(), ""), "boom");
+  // execFile's own timeout: no stderr, a signal, and a message nobody should read.
+  assert.match(ghErrorMessage(Object.assign(new Error("Command failed: gh api x"), { code: null, signal: "SIGTERM", killed: true }), ""), /did not answer in time/);
 });

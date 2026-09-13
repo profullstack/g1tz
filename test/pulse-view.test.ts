@@ -90,6 +90,7 @@ test("every panel draws with the repository's numbers", () => {
   assert.match(out, /src\/a\.ts/);
   assert.match(out, /\+25/);
   assert.match(out, /docs\/old\.md → docs\/new\.md/);
+  assert.match(out, /ctrl\+c Quit/, "q is a range here, so the status bar names the real quit key");
 });
 
 test("the range buttons are drawn and clicking one picks that range", () => {
