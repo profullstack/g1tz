@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">g1tz icon</title>
+  <desc id="desc">A turquoise and mint Git commit graph on a charcoal rounded square.</desc>
+  <defs>
+    <linearGradient id="graph" x1="46" y1="28" x2="81" y2="104" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#00DDE7"/>
+      <stop offset="0.55" stop-color="#2FEEC5"/>
+      <stop offset="1" stop-color="#87F6A5"/>
+    </linearGradient>
+  </defs>
+  <rect x="12" y="12" width="104" height="104" rx="24" fill="#1B1F22"/>
+  <path d="M49 34V96M49 67L86 46" stroke="url(#graph)" stroke-width="6" stroke-linecap="round"/>
+  <g fill="url(#graph)">
+    <circle cx="49" cy="34" r="9"/>
+    <circle cx="49" cy="67" r="9"/>
+    <circle cx="49" cy="96" r="9"/>
+    <circle cx="86" cy="46" r="9"/>
+  </g>
+</svg>

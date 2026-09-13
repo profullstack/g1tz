@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="360" viewBox="0 0 1080 360" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">g1tz</title>
+  <desc id="desc">A mint Git commit graph in a charcoal terminal tile beside the lowercase g1tz wordmark.</desc>
+  <defs>
+    <linearGradient id="graph" x1="208" y1="70" x2="286" y2="280" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#00DDE7"/>
+      <stop offset="0.55" stop-color="#2FEEC5"/>
+      <stop offset="1" stop-color="#87F6A5"/>
+    </linearGradient>
+    <g id="wordmark" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="486" cy="176" r="44"/>
+      <path d="M530 132V238Q530 268 496 268H462M596 117L631 93V231M593 231H666M725 107V212Q725 231 744 231H775M697 140H775M840 140H921L839 231H926"/>
+    </g>
+  </defs>
+  <rect x="114" y="38" width="274" height="270" rx="62" fill="#1B1F22"/>
+  <g stroke="url(#graph)" stroke-width="17" stroke-linecap="round">
+    <path d="M211 93V256M211 177L308 126"/>
+  </g>
+  <g fill="url(#graph)">
+    <circle cx="211" cy="93" r="24"/>
+    <circle cx="211" cy="177" r="24"/>
+    <circle cx="211" cy="256" r="24"/>
+    <circle cx="308" cy="126" r="24"/>
+  </g>
+  <use href="#wordmark" stroke="#141B1D" stroke-width="52"/>
+  <use href="#wordmark" stroke="#32EFBA" stroke-width="31"/>
+</svg>
