@@ -35,7 +35,31 @@ Files, branches and log down the left. The diff on the right follows whatever yo
 | `Space` | Stage the selected file, or unstage it if it is fully staged |
 | `←` `→` | Scroll the diff |
 | `r` | Re-read the repository |
+| `p` | Pulse: what moved over a period (below) |
 | `q` | Quit |
+
+## Pulse
+
+`p` flips to Pulse: what moved in this repository over a period, the way GitHub's Insights > Pulse tab shows it, but for the repository you are standing in and without leaving the terminal.
+
+```
+bunx g1tz pulse                 # start on the Pulse screen, last week
+bunx g1tz pulse --range month   # day, week, month, quarter, year, all
+```
+
+Three sources, each optional beyond the first:
+
+- **git**, always, offline: commits and authors on the branch and across every branch (merges counted separately, as GitHub does), the net change to the tree since the period began (`git diff` from the first parent of the oldest commit in range, with `-M` so a rename is a rename), commits per hour, day, week or month, the branches that saw commits and the tags that were created.
+- **GitHub**, when `origin` is on github.com and `gh` is logged in: pull requests opened, merged and closed, issues opened and closed, releases, and new stars for the period. Pages are walked newest first under a small budget; when the budget runs out the counts are floors and the status bar says so. Nothing here sees a token; `gh` holds the login.
+- **Traffic**, when a [gh-pulse](https://github.com/profullstack/cli-tools) report exists on the machine (`~/.local/share/gh-pulse`, or `GH_PULSE_DATA`): views and clones for the last fourteen days, referrers and popular paths. GitHub only serves those through its traffic API and only for fourteen days; gh-pulse keeps them.
+
+| Key | Does |
+|---|---|
+| `d` `w` `m` `q` `y` `a` | Pick the range: day, week, month, quarter, year, all time. The range buttons are clickable too. |
+| `↑` `↓` `PgUp` `PgDn` | Scroll the files |
+| `r` | Read it again |
+| `p` `Esc` | Back to the repository, where `q` quits |
+| `Ctrl+C` | Quit |
 
 ## How it reads git
 

@@ -7,6 +7,11 @@ import {
   diffLineKind, git, parseBranches, parseLog, parseStatus, readRepo, repoRoot, stage, unstage,
 } from "../src/git.ts";
 
+// Read no global or system git config, so a developer's commit.gpgsign or
+// init.templateDir cannot reach these repositories.
+process.env["GIT_CONFIG_GLOBAL"] = "/dev/null";
+process.env["GIT_CONFIG_NOSYSTEM"] = "1";
+
 /** A throwaway repository, so these tests exercise real git rather than mocks. */
 function scratch(): string {
   const dir = mkdtempSync(join(tmpdir(), "g1tz-"));
@@ -79,6 +84,29 @@ test("log records split on the unit separator", () => {
   assert.equal(commit?.subject, "the subject");
   assert.equal(commit?.author, "Ann");
   assert.equal(commit?.refs, "HEAD -> main");
+});
+
+test("the newline git puts between log records is not part of the next hash", () => {
+  const first = ["a".repeat(40), "aaaaaaa", "one", "Ann", "2 days ago", ""].join("\x1f");
+  const second = ["b".repeat(40), "bbbbbbb", "two", "Bo", "3 days ago", ""].join("\x1f");
+  // Exactly what `--pretty=format:...%x00` emits: a NUL ends each record and a newline separates them.
+  const commits = parseLog(`${first}\0\n${second}\0`);
+  assert.deepEqual(commits.map((c) => c.hash), ["a".repeat(40), "b".repeat(40)]);
+});
+
+test("every commit's hash read from a real repository is usable by git show", () => {
+  const dir = scratch();
+  writeFileSync(join(dir, "a.txt"), "two\n");
+  git(dir, ["add", "."]);
+  git(dir, ["commit", "-qm", "second"]);
+  // With this set, git prints signature verification on stdout ahead of every record.
+  git(dir, ["config", "log.showSignature", "true"]);
+  const repo = readRepo(dir);
+  assert.ok(repo);
+  assert.equal(repo.commits.length, 2);
+  for (const c of repo.commits) {
+    assert.ok(git(dir, ["show", "--no-patch", "--format=%H", c.hash]) !== null, `git show accepts ${JSON.stringify(c.hash)}`);
+  }
 });
 
 test("branch tracking counts are read from the track field", () => {

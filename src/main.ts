@@ -1,11 +1,14 @@
 /**
- * g1tz — a git TUI that shows you the repository, not a menu of git commands.
+ * g1tz: a git TUI that shows you the repository, not a menu of git commands.
  *
- *   bunx g1tz          # the repository in the working directory
- *   bunx g1tz ~/proj   # somewhere else
+ *   bunx g1tz                        # the repository in the working directory
+ *   bunx g1tz ~/proj                 # somewhere else
+ *   bunx g1tz pulse [--range month]  # start on the Pulse screen
  *
  * Files, branches and log on the left; the diff for whatever is selected on
- * the right. Space stages and unstages.
+ * the right. Space stages and unstages. `p` flips to Pulse: what moved in the
+ * repository over a period, from git, from GitHub when gh is logged in, and
+ * from a gh-pulse report when one exists on the machine.
  */
 import { createApp, elevate, themes, type Container, type KeyEvent, type Theme } from "@profullstack/hqtui";
 import { resolve } from "node:path";
@@ -14,28 +17,40 @@ import {
   type FileChange, type Repo,
 } from "./git.ts";
 import { highlightDiff, type DiffPalette } from "./diff.ts";
+import { ghFetch, ghInstalled, githubRemote, readGitHubPulse, repoName, type Fetch, type GitHubRepo } from "./github.ts";
+import { RANGE_KEYS, parseRangeKey, rangeForHotkey, readPulse, sinceFor, type RangeKey } from "./pulse.ts";
+import { NO_ACTIONS, clampOffset, createPulseState, pulseView, type PulseActions, type PulseState } from "./pulse-view.ts";
+import { readTraffic } from "./traffic.ts";
 
 export type PaneName = "files" | "branches" | "log";
+export type Screen = "repo" | "pulse";
 
 export interface State {
   repo: Repo;
+  /** The origin remote, when it is on GitHub. */
+  github: GitHubRepo | null;
+  screen: Screen;
   pane: PaneName;
   selected: Record<PaneName, number>;
   offset: Record<PaneName, number>;
   diff: string[];
   diffOffset: number;
   note: string;
+  pulse: PulseState;
 }
 
 export function createState(repo: Repo): State {
   const state: State = {
     repo,
+    github: githubRemote(repo.root),
+    screen: "repo",
     pane: "files",
     selected: { files: 0, branches: 0, log: 0 },
     offset: { files: 0, branches: 0, log: 0 },
     diff: [],
     diffOffset: 0,
     note: "",
+    pulse: createPulseState(),
   };
   refreshDiff(state);
   return state;
@@ -116,16 +131,164 @@ export function reload(state: State): void {
   refreshDiff(state);
 }
 
+// ---------------------------------------------------------------- pulse
+
+/** Read the git half of the pulse for the current range, and the traffic if a gh-pulse report has this repository. */
+export function refreshPulse(state: State, now: Date = new Date()): void {
+  const p = state.pulse;
+  p.data = readPulse(state.repo.root, p.range, now);
+  p.filesOffset = 0;
+  p.traffic = state.github ? readTraffic(repoName(state.github)) : null;
+}
+
+/** Flip to the Pulse screen, reading it the first time or when the range changed. */
+export function openPulse(state: State, range?: RangeKey, now: Date = new Date()): void {
+  state.screen = "pulse";
+  if (range) state.pulse.range = range;
+  if (!state.pulse.data || state.pulse.data.range !== state.pulse.range) refreshPulse(state, now);
+}
+
+export function pickRange(state: State, range: RangeKey, now: Date = new Date()): void {
+  state.pulse.range = range;
+  state.pulse.note = "";
+  refreshPulse(state, now);
+}
+
+export function scrollPulseFiles(state: State, delta: number): void {
+  state.pulse.filesOffset = clampOffset(state.pulse.filesOffset + delta, state.pulse.data?.files.length ?? 0);
+}
+
+/**
+ * The GitHub half, off the render loop. Every call takes a ticket; a reply for
+ * an older ticket (the range changed while it was in flight) is dropped.
+ */
+export function startGitHub(
+  state: State,
+  onChange: () => void,
+  now: Date = new Date(),
+  fetch: Fetch = ghFetch,
+  installed: () => boolean = ghInstalled,
+): Promise<void> {
+  const p = state.pulse;
+  const ticket = ++p.githubRequest;
+  const unavailable = (why: string): Promise<void> => {
+    p.githubStatus = "unavailable";
+    p.githubNote = why;
+    onChange();
+    return Promise.resolve();
+  };
+  if (!state.github) return unavailable("origin is not a GitHub remote");
+  if (!installed()) return unavailable("gh is not installed");
+  p.githubStatus = "loading";
+  p.githubNote = "";
+  onChange();
+  return readGitHubPulse(state.github, sinceFor(p.range, now), fetch).then(
+    (github) => {
+      if (ticket !== p.githubRequest) return;
+      p.github = github;
+      p.githubStatus = "ready";
+      onChange();
+    },
+    (error: unknown) => {
+      if (ticket !== p.githubRequest) return;
+      p.githubStatus = "unavailable";
+      p.githubNote = error instanceof Error ? error.message : String(error);
+      onChange();
+    },
+  );
+}
+
+// ---------------------------------------------------------------- command line
+
+export const USAGE = `Usage:
+  g1tz [path]                      the repository (default: the working directory)
+  g1tz pulse [path] [--range KEY]  start on the Pulse screen
+  KEY: ${RANGE_KEYS.join(", ")} (default week)`;
+
+export interface Cli {
+  path: string;
+  pulse: boolean;
+  range?: RangeKey;
+  help: boolean;
+  error?: string;
+}
+
+export function parseCli(argv: readonly string[]): Cli {
+  const cli: Cli = { path: ".", pulse: false, help: false };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i] as string;
+    if (a === "-h" || a === "--help") cli.help = true;
+    else if (a === "pulse") cli.pulse = true;
+    else if (a === "--range" || a.startsWith("--range=")) {
+      const text = a === "--range" ? (argv[++i] ?? "") : a.slice("--range=".length);
+      const key = parseRangeKey(text);
+      if (!key) {
+        cli.error = `--range wants one of ${RANGE_KEYS.join(", ")}, not "${text}"`;
+        return cli;
+      }
+      cli.range = key;
+      cli.pulse = true;
+    } else if (a.startsWith("-")) {
+      cli.error = `unknown option: ${a}`;
+      return cli;
+    } else cli.path = a;
+  }
+  return cli;
+}
+
 async function main(): Promise<void> {
-  const repo = readRepo(resolve(process.argv[2] ?? "."));
+  const cli = parseCli(process.argv.slice(2));
+  if (cli.help) {
+    console.log(USAGE);
+    return;
+  }
+  if (cli.error) {
+    console.error(`g1tz: ${cli.error}\n${USAGE}`);
+    process.exit(2);
+  }
+  const repo = readRepo(resolve(cli.path));
   if (!repo) {
     console.error("g1tz: not a git repository");
     process.exit(1);
   }
   const state = createState(repo);
-  const app = await createApp({ theme: themes.dark, title: "g1tz", quitKeys: ["ctrl+c"] });
+  if (cli.pulse) openPulse(state, cli.range);
+  // focusNavigation off: the app handles every key itself, and with it on,
+  // Enter or Space would activate whichever range button held hqtui's hidden
+  // focus (the first one) and silently switch the range to "day".
+  const app = await createApp({ theme: themes.dark, title: "g1tz", quitKeys: ["ctrl+c"], focusNavigation: false });
+  const changed = (): void => app.invalidate();
+  const actions: PulseActions = {
+    pickRange: (key) => { pickRange(state, key); void startGitHub(state, changed); changed(); },
+    // The re-read panels and the spinner are the acknowledgement; a sticky note here would mask the GitHub line.
+    refresh: () => { refreshPulse(state); void startGitHub(state, changed); changed(); },
+    back: () => { state.screen = "repo"; changed(); },
+    pulse: () => { openPulse(state); void startGitHub(state, changed); changed(); },
+  };
+  if (cli.pulse) void startGitHub(state, changed);
+
+  // No `q` here: on this screen q is the quarter range. Ctrl+C quits from
+  // anywhere, and p or Escape go back to the repository, where q quits.
+  const pulseKey = (key: string): void => {
+    switch (key) {
+      case "p": case "escape": actions.back(); return;
+      case "r": actions.refresh(); return;
+      case "up": scrollPulseFiles(state, -1); return;
+      case "down": scrollPulseFiles(state, 1); return;
+      case "pageup": scrollPulseFiles(state, -10); return;
+      case "pagedown": scrollPulseFiles(state, 10); return;
+      default: {
+        const range = rangeForHotkey(key);
+        if (range) actions.pickRange(range);
+      }
+    }
+  };
 
   app.on("key", (event: KeyEvent) => {
+    if (state.screen === "pulse") {
+      pulseKey(event.key);
+      return;
+    }
     switch (event.key) {
       case "q": app.quit(); return;
       case "tab":
@@ -140,10 +303,11 @@ async function main(): Promise<void> {
       case "r": reload(state); state.note = "reloaded"; return;
       case "left": state.diffOffset = Math.max(0, state.diffOffset - 10); return;
       case "right": state.diffOffset += 10; return;
+      case "p": actions.pulse(); return;
     }
   });
 
-  app.render((args) => view(args, state));
+  app.render((args) => view(args, state, actions));
   await app.start();
 }
 
@@ -165,10 +329,24 @@ export function diffPalette(theme: Theme): DiffPalette {
   };
 }
 
-export function view(
-  { ui, theme, height }: { ui: Container; theme: Theme; height: number },
-  state: State,
-): void {
+export interface ViewArgs {
+  ui: Container;
+  theme: Theme;
+  width: number;
+  height: number;
+  elapsed: number;
+}
+
+/** One frame: whichever screen the state is on. */
+export function view(args: ViewArgs, state: State, actions: PulseActions = NO_ACTIONS): void {
+  if (state.screen === "pulse") {
+    pulseView(args, state.pulse, state.repo.root, actions);
+    return;
+  }
+  repoView(args, state, actions);
+}
+
+function repoView({ ui, theme, height }: ViewArgs, state: State, actions: PulseActions): void {
   const repo = state.repo;
   const track = repo.upstream
     ? `${repo.upstream}${repo.ahead ? ` ↑${repo.ahead}` : ""}${repo.behind ? ` ↓${repo.behind}` : ""}`
@@ -178,7 +356,7 @@ export function view(
     header.text(" g1tz", { fg: theme.title, bold: true, size: 7 });
     header.text(repo.branch || "(detached)", { fg: theme.accent, size: 24 });
     header.text(track, { fg: theme.muted });
-    header.text(`${repo.root}  Tab panes  Space stage  q quit `, { fg: theme.muted, align: "right" });
+    header.text(`${repo.root}  Tab panes  Space stage  p pulse  q quit `, { fg: theme.muted, align: "right" });
   });
 
   ui.row({ size: height - 2, gap: 1 }, (row) => {
@@ -273,6 +451,7 @@ export function view(
       { key: "Space", label: "Stage" },
       { key: "↑↓", label: "Move" },
       { key: "r", label: "Reload" },
+      { key: "p", label: "Pulse", onPress: actions.pulse },
       { key: "q", label: "Quit" },
     ],
     right: [{ label: repo.errors.length ? `${repo.errors.length} git errors` : "" }],
