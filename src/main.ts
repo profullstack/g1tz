@@ -236,7 +236,7 @@ export function parseCli(argv: readonly string[]): Cli {
   return cli;
 }
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
   const cli = parseCli(process.argv.slice(2));
   if (cli.help) {
     console.log(USAGE);
