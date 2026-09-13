@@ -1,9 +1,9 @@
 /**
  * g1tz: a git TUI that shows you the repository, not a menu of git commands.
  *
- *   bunx g1tz                        # the repository in the working directory
- *   bunx g1tz ~/proj                 # somewhere else
- *   bunx g1tz pulse [--range month]  # start on the Pulse screen
+ *   bunx @profullstack/g1tz                        # the repository in the working directory
+ *   bunx @profullstack/g1tz ~/proj                 # somewhere else
+ *   bunx @profullstack/g1tz pulse [--range month]  # start on the Pulse screen
  *
  * Files, branches and log on the left; the diff for whatever is selected on
  * the right. Space stages and unstages. `p` flips to Pulse: what moved in the
