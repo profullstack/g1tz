@@ -22,5 +22,6 @@ test("the installed command prints its usage", () => {
 test("the installed command refuses a directory that is not a repository", () => {
   const run = spawnSync("node", [join(ROOT, "bin", "g1tz.mjs"), "/"], { cwd: ROOT, encoding: "utf8", timeout: 30_000 });
   assert.equal(run.status, 1);
-  assert.match(run.stderr, /not a git repository/);
+  assert.match(run.stderr, /^g1tz: \/ is not a git repository\./m, "names the directory it looked at");
+  assert.match(run.stderr, /g1tz ~\/proj/, "and says what to do");
 });

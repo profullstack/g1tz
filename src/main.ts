@@ -246,9 +246,10 @@ export async function main(): Promise<void> {
     console.error(`g1tz: ${cli.error}\n${USAGE}`);
     process.exit(2);
   }
-  const repo = readRepo(resolve(cli.path));
+  const root = resolve(cli.path);
+  const repo = readRepo(root);
   if (!repo) {
-    console.error("g1tz: not a git repository");
+    console.error(`g1tz: ${root} is not a git repository.\nRun it inside one, or name one: g1tz ~/proj  (g1tz pulse ~/proj for the Pulse screen)`);
     process.exit(1);
   }
   const state = createState(repo);
