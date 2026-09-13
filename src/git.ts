@@ -129,7 +129,11 @@ const LOG_FORMAT = "%H%x1f%h%x1f%s%x1f%an%x1f%ar%x1f%D";
 
 export function parseLog(out: string): Commit[] {
   const commits: Commit[] = [];
-  for (const line of out.split("\0")) {
+  for (const raw of out.split("\0")) {
+    // `--pretty=format:` puts a newline BETWEEN records, after the NUL, so
+    // every record but the first starts with one. Left in, it rode along on
+    // the hash and `git show` failed for every commit but the first.
+    const line = raw.replace(/^\n/, "");
     if (line === "") continue;
     const [hash, short, subject, author, when, refs] = line.split("\x1f");
     if (!hash) continue;

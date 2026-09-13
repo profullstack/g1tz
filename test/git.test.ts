@@ -81,6 +81,27 @@ test("log records split on the unit separator", () => {
   assert.equal(commit?.refs, "HEAD -> main");
 });
 
+test("the newline git puts between log records is not part of the next hash", () => {
+  const first = ["a".repeat(40), "aaaaaaa", "one", "Ann", "2 days ago", ""].join("\x1f");
+  const second = ["b".repeat(40), "bbbbbbb", "two", "Bo", "3 days ago", ""].join("\x1f");
+  // Exactly what `--pretty=format:...%x00` emits: a NUL ends each record and a newline separates them.
+  const commits = parseLog(`${first}\0\n${second}\0`);
+  assert.deepEqual(commits.map((c) => c.hash), ["a".repeat(40), "b".repeat(40)]);
+});
+
+test("every commit's hash read from a real repository is usable by git show", () => {
+  const dir = scratch();
+  writeFileSync(join(dir, "a.txt"), "two\n");
+  git(dir, ["add", "."]);
+  git(dir, ["commit", "-qm", "second"]);
+  const repo = readRepo(dir);
+  assert.ok(repo);
+  assert.equal(repo.commits.length, 2);
+  for (const c of repo.commits) {
+    assert.ok(git(dir, ["show", "--no-patch", "--format=%H", c.hash]) !== null, `git show accepts ${JSON.stringify(c.hash)}`);
+  }
+});
+
 test("branch tracking counts are read from the track field", () => {
   const rows = [
     ["*", "main", "origin/main", "[ahead 2, behind 1]"].join("\x1f"),
