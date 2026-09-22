@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>g1tz plans</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/">g1tz</a>
+  <nav><a href="/pricing">Plans</a><a href="/account">Account</a><a href="https://github.com/profullstack/g1tz">GitHub</a></nav>
+</header>
+<main>
+  <h1>Plans</h1>
+  <p class="lead">Community is free and stays free for everything local. Paid plans add people.</p>
+  <div id="upgrade" class="notice hidden"></div>
+  <div id="plans" class="cards"><p class="muted">Loading…</p></div>
+
+  <h2>How a paid plan arrives</h2>
+  <ol>
+    <li>An Owner, Admin or Billing Contact links the organization to its <a href="https://logicsrc.com/openaccess">OpenAccess</a> principal: <code>g1tz org link ORG oa_…</code>, or on the <a href="/account">account page</a>.</li>
+    <li>Buy the product for that principal at the hub. The product names are in this site's <a href="/.well-known/openaccess.json">descriptor</a>.</li>
+    <li>The hub signs an entitlement event to this server; the organization moves to the plan, with the seats the entitlement carries. When the entitlement lapses, the organization returns to Community and keeps its people.</li>
+  </ol>
+  <p class="muted">Nothing on this site takes a card. A plan is a fact the hub reports, which is why it travels between apps.</p>
+  <footer><a href="/">Home</a></footer>
+</main>
+<script src="/assets/pricing.js"></script>
+</body>
+</html>

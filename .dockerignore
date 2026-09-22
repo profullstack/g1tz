@@ -1,0 +1,8 @@
+node_modules
+dist
+data
+.claude
+test
+server/test
+scripts
+*.md
