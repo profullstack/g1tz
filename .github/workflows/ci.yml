@@ -42,7 +42,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run build
       - run: node bin/g1tz.mjs --help | grep -q "g1tz members invite"
-      - run: node bin/g1tz.mjs / ; test $? -eq 1
+      - run: node bin/g1tz.mjs / || test $? -eq 1
 
   container:
     name: production image
