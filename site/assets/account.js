@@ -6,7 +6,7 @@
 (() => {
   const app = document.getElementById("app");
   const ROLES = ["owner", "admin", "lead", "user", "billing"];
-  const state = { user: null, orgs: [], orgId: null, org: null, members: null, teams: null, workspaces: null, plan: null, audit: null, tokens: null, device: null, notice: null, pendingInvite: null };
+  const state = { user: null, orgs: [], orgId: null, org: null, members: null, teams: null, workspaces: null, plan: null, audit: null, tokens: null, device: null, notice: null, pendingInvite: null, newToken: null };
 
   // ---------------------------------------------------------------- transport
   async function post(path, body) {
@@ -267,7 +267,7 @@
 
   function planSection(org, bills) {
     const p = state.plan;
-    const seats = h("input", { type: "number", min: 1, value: org.seats.seats, name: "seats", style: "width:6em" });
+    const seats = h("input", { type: "number", min: 1, value: org.seats.seats, name: "seats", class: "seats" });
     return h("div", { class: "card" }, h("h2", {}, `Plan: ${p.planName}`),
       h("ul", { class: "plain" }, p.entitlements.map((e) => h("li", { class: e.unlocked ? "ok" : "lock" }, `${e.unlocked ? "✓" : "🔒"} ${e.line}${e.unlocked ? "" : ` (${capital(e.plan)})`}`))),
       p.entitlement && h("p", { class: "muted" }, `Entitlement ${p.entitlement.status} via ${p.entitlement.source}, ${when(p.entitlement.updatedAt)}${p.entitlement.principal ? `, principal ${p.entitlement.principal}` : ""}`),
@@ -314,12 +314,20 @@
   function tokensCard() {
     if (!state.tokens) return h("span");
     const label = h("input", { placeholder: "CI token", name: "label", maxlength: 80 });
-    const shown = h("div", {});
+    // The token lives in state, not in a node: every action re-renders the
+    // whole page, and a node-only token vanished with the render that
+    // followed its creation.
+    const fresh = state.newToken;
+    const reveal = fresh && h("div", { class: "notice ok" },
+      h("p", {}, h("strong", {}, `Token “${fresh.label}” created.`), " Copy it now; it is not shown again."),
+      h("p", {}, h("input", { class: "token", value: fresh.token, readonly: true, spellcheck: "false", onclick: (e) => e.target.select() })),
+      h("p", { class: "muted" }, `In CI: G1TZ_URL=${location.origin} G1TZ_TOKEN=<the token>`),
+      h("button", { class: "quiet", onclick: () => { state.newToken = null; render(); } }, "I copied it"));
     return h("div", { class: "card" }, h("h2", {}, "Terminals and tokens"),
       h("p", { class: "muted" }, "Sessions from g1tz login and API tokens for CI. Revoking one signs that terminal out."),
+      reveal,
       h("ul", { class: "plain" }, state.tokens.map((t) => h("li", { class: "row" }, `${t.label} (${t.kind}, until ${when(t.expiresAt).slice(0, 10)})`, h("button", { class: "quiet", onclick: () => act(() => call("tokens_revoke", { tokenId: t.id }), "Revoked.") }, "Revoke")))),
-      h("form", { class: "row", onsubmit: (e) => { e.preventDefault(); act(async () => { const t = await call("tokens_create", { label: label.value || "API token" }); shown.innerHTML = ""; shown.append(h("p", {}, "Copy it now; it is not shown again: ", h("code", {}, t.token)), h("p", { class: "muted" }, `In CI: G1TZ_TOKEN=… G1TZ_URL=${location.origin}`)); }); } }, label, h("button", { class: "quiet", type: "submit" }, "Create API token")),
-      shown);
+      h("form", { class: "row", onsubmit: (e) => { e.preventDefault(); act(async () => { state.newToken = await call("tokens_create", { label: label.value || "API token" }); }); } }, label, h("button", { class: "quiet", type: "submit" }, "Create API token")));
   }
 
   boot().catch((error) => { app.innerHTML = ""; app.appendChild(h("div", { class: "notice error" }, error.message)); });

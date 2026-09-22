@@ -41,5 +41,7 @@ form.row, .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; 
 ul.plain { list-style: none; padding: 0; margin: 8px 0; }
 ul.plain li { padding: 4px 0; }
 .code { font-size: 28px; letter-spacing: .12em; font-family: ui-monospace, monospace; }
+input.seats { width: 6em; }
+input.token { width: 100%; max-width: 520px; font-family: ui-monospace, monospace; font-size: 14px; }
 .hidden { display: none; }
 footer { margin-top: 48px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); padding-top: 16px; }
