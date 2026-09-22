@@ -21,9 +21,12 @@ import { ghFetch, ghInstalled, githubRemote, readGitHubPulse, repoName, type Fet
 import { RANGE_KEYS, parseRangeKey, rangeForHotkey, readPulse, sinceFor, type RangeKey } from "./pulse.ts";
 import { NO_ACTIONS, clampOffset, createPulseState, pulseView, type PulseActions, type PulseState } from "./pulse-view.ts";
 import { readTraffic } from "./traffic.ts";
+import { CLOUD_USAGE, cloudMain, isCloudCommand } from "./cloud-cli.ts";
+import { cloudConfig } from "./account.ts";
+import { createTeamState, cyclePane, loadTeam, moveTeam, teamView, NO_TEAM_ACTIONS, type TeamActions, type TeamState } from "./team-view.ts";
 
 export type PaneName = "files" | "branches" | "log";
-export type Screen = "repo" | "pulse";
+export type Screen = "repo" | "pulse" | "team";
 
 export interface State {
   repo: Repo;
@@ -37,6 +40,7 @@ export interface State {
   diffOffset: number;
   note: string;
   pulse: PulseState;
+  team: TeamState;
 }
 
 export function createState(repo: Repo): State {
@@ -51,6 +55,7 @@ export function createState(repo: Repo): State {
     diffOffset: 0,
     note: "",
     pulse: createPulseState(),
+    team: createTeamState(),
   };
   refreshDiff(state);
   return state;
@@ -203,7 +208,9 @@ export function startGitHub(
 export const USAGE = `Usage:
   g1tz [path]                      the repository (default: the working directory)
   g1tz pulse [path] [--range KEY]  start on the Pulse screen
-  KEY: ${RANGE_KEYS.join(", ")} (default week)`;
+  KEY: ${RANGE_KEYS.join(", ")} (default week)
+
+${CLOUD_USAGE}`;
 
 export interface Cli {
   path: string;
@@ -237,7 +244,13 @@ export function parseCli(argv: readonly string[]): Cli {
 }
 
 export async function main(): Promise<void> {
-  const cli = parseCli(process.argv.slice(2));
+  const argv = process.argv.slice(2);
+  if (isCloudCommand(argv[0])) {
+    const code = await cloudMain(argv, { out: (line) => console.log(line), err: (line) => console.error(line) });
+    if (code !== 0) process.exit(code);
+    return;
+  }
+  const cli = parseCli(argv);
   if (cli.help) {
     console.log(USAGE);
     return;
@@ -268,6 +281,36 @@ export async function main(): Promise<void> {
   };
   if (cli.pulse) void startGitHub(state, changed);
 
+  // The Team screen reads the organization this terminal signed in to. The
+  // config is re-read on every open so `g1tz login` in another terminal is
+  // picked up by r or t without restarting.
+  const readTeam = (): void => {
+    let config;
+    try { config = cloudConfig(); } catch (error) {
+      state.team.status = "error";
+      state.team.note = error instanceof Error ? error.message : String(error);
+      changed();
+      return;
+    }
+    void loadTeam(state.team, config, changed);
+  };
+  const teamActions: TeamActions = {
+    back: () => { state.screen = "repo"; changed(); },
+    refresh: readTeam,
+  };
+  const openTeam = (): void => { state.screen = "team"; readTeam(); changed(); };
+  const teamKey = (key: string): void => {
+    switch (key) {
+      case "t": case "escape": teamActions.back(); return;
+      case "r": readTeam(); return;
+      case "tab": cyclePane(state.team); return;
+      case "up": moveTeam(state.team, -1); return;
+      case "down": moveTeam(state.team, 1); return;
+      case "pageup": moveTeam(state.team, -10); return;
+      case "pagedown": moveTeam(state.team, 10); return;
+    }
+  };
+
   // No `q` here: on this screen q is the quarter range. Ctrl+C quits from
   // anywhere, and p or Escape go back to the repository, where q quits.
   const pulseKey = (key: string): void => {
@@ -290,6 +333,10 @@ export async function main(): Promise<void> {
       pulseKey(event.key);
       return;
     }
+    if (state.screen === "team") {
+      teamKey(event.key);
+      return;
+    }
     switch (event.key) {
       case "q": app.quit(); return;
       case "tab":
@@ -305,10 +352,11 @@ export async function main(): Promise<void> {
       case "left": state.diffOffset = Math.max(0, state.diffOffset - 10); return;
       case "right": state.diffOffset += 10; return;
       case "p": actions.pulse(); return;
+      case "t": openTeam(); return;
     }
   });
 
-  app.render((args) => view(args, state, actions));
+  app.render((args) => view(args, state, actions, teamActions));
   await app.start();
 }
 
@@ -339,15 +387,19 @@ export interface ViewArgs {
 }
 
 /** One frame: whichever screen the state is on. */
-export function view(args: ViewArgs, state: State, actions: PulseActions = NO_ACTIONS): void {
+export function view(args: ViewArgs, state: State, actions: PulseActions = NO_ACTIONS, teamActions: TeamActions = NO_TEAM_ACTIONS): void {
   if (state.screen === "pulse") {
     pulseView(args, state.pulse, state.repo.root, actions);
     return;
   }
-  repoView(args, state, actions);
+  if (state.screen === "team") {
+    teamView(args, state.team, teamActions);
+    return;
+  }
+  repoView(args, state, actions, teamActions);
 }
 
-function repoView({ ui, theme, height }: ViewArgs, state: State, actions: PulseActions): void {
+function repoView({ ui, theme, height }: ViewArgs, state: State, actions: PulseActions, teamActions: TeamActions): void {
   const repo = state.repo;
   const track = repo.upstream
     ? `${repo.upstream}${repo.ahead ? ` ↑${repo.ahead}` : ""}${repo.behind ? ` ↓${repo.behind}` : ""}`
@@ -357,7 +409,7 @@ function repoView({ ui, theme, height }: ViewArgs, state: State, actions: PulseA
     header.text(" g1tz", { fg: theme.title, bold: true, size: 7 });
     header.text(repo.branch || "(detached)", { fg: theme.accent, size: 24 });
     header.text(track, { fg: theme.muted });
-    header.text(`${repo.root}  Tab panes  Space stage  p pulse  q quit `, { fg: theme.muted, align: "right" });
+    header.text(`${repo.root}  Tab panes  Space stage  p pulse  t team  q quit `, { fg: theme.muted, align: "right" });
   });
 
   ui.row({ size: height - 2, gap: 1 }, (row) => {
@@ -453,6 +505,7 @@ function repoView({ ui, theme, height }: ViewArgs, state: State, actions: PulseA
       { key: "↑↓", label: "Move" },
       { key: "r", label: "Reload" },
       { key: "p", label: "Pulse", onPress: actions.pulse },
+      { key: "t", label: "Team", onPress: () => { state.screen = "team"; teamActions.refresh(); } },
       { key: "q", label: "Quit" },
     ],
     right: [{ label: repo.errors.length ? `${repo.errors.length} git errors` : "" }],

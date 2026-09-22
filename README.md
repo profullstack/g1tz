@@ -80,6 +80,30 @@ Three sources, each optional beyond the first:
 | `p` `Esc` | Back to the repository, where `q` quits |
 | `Ctrl+C` | Quit |
 
+## Teams
+
+`t` flips to the Team screen: the organization this terminal signed in to, its members and their roles, teams, shared workspaces with their repositories, seats, and every feature with the plan that unlocks it. The roles are the ones a GitKraken team already knows: one Owner, then Admin, Lead, User and Billing Contact, and every role but Billing Contact holds a seat.
+
+```sh
+g1tz login                                   # a code, approved in the browser at g1tz.hqtui.com
+g1tz org create Acme
+g1tz members invite bo@acme.test --role admin
+g1tz teams create Platform
+g1tz workspaces create Everything
+g1tz workspaces add WORKSPACE https://github.com/acme/site
+g1tz plan                                    # what the plan unlocks, and what it does not
+g1tz audit                                   # who changed what
+```
+
+Community is free for one seat and never gates anything local. Pro invites people and shares workspaces, Advanced adds teams and a verified email domain, Business adds Insights, the Lead role and audit export. A plan is an [OpenAccess](https://logicsrc.com/openaccess) entitlement, so it travels between apps. The whole model, the command line, the account page and how to run your own server are in [docs/teams.md](docs/teams.md).
+
+| Key | Does |
+|---|---|
+| `Tab` | Cycle members → teams → workspaces |
+| `↑` `↓` `PgUp` `PgDn` | Move the selection |
+| `r` | Read the organization again (picks up a fresh `g1tz login`) |
+| `t` `Esc` | Back to the repository |
+
 ## How it reads git
 
 By shelling out, using porcelain formats only, with `-z` wherever a path could contain a newline. Parsing output meant for humans is how a TUI ends up corrupting someone's working tree.

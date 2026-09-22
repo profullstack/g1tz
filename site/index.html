@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>g1tz teams</title>
+<meta name="description" content="Organizations, roles, seats, teams and shared workspaces for g1tz, the git TUI. One sign-in for the terminal and the browser.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/">g1tz</a>
+  <nav><a href="/pricing">Plans</a><a href="/account">Account</a><a href="https://github.com/profullstack/g1tz">GitHub</a></nav>
+</header>
+<main>
+  <h1>Teams for a git TUI</h1>
+  <p class="lead">g1tz shows you the repository. Teams show you who you work with: one organization, the roles a GitKraken team already knows, seats, teams, shared workspaces and an audit log. Signed in from the terminal with a code, never a pasted token.</p>
+
+  <pre>npm i -g @profullstack/g1tz
+g1tz login          # prints a code; approve it at /account
+g1tz org create Acme
+g1tz members invite bo@acme.test --role admin
+g1tz teams create Platform
+g1tz workspaces create Everything
+g1tz                # press t for the Team screen</pre>
+
+  <h2>Roles</h2>
+  <table>
+    <thead><tr><th>Role</th><th>Seat</th><th>Users</th><th>Teams</th><th>Billing</th><th>Insights</th><th>Transfer</th></tr></thead>
+    <tbody>
+      <tr><td>Owner</td><td>yes</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+      <tr><td>Admin</td><td>yes</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td></td></tr>
+      <tr><td>Lead</td><td>yes</td><td></td><td>✓</td><td></td><td>✓</td><td></td></tr>
+      <tr><td>User</td><td>yes</td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>Billing Contact</td><td>no</td><td></td><td></td><td>✓</td><td></td><td></td></tr>
+    </tbody>
+  </table>
+  <p class="muted">One owner per organization. Admins cannot change or remove the owner. The Lead role exists on plans with Insights.</p>
+
+  <h2>What a plan unlocks</h2>
+  <table>
+    <thead><tr><th>Plan</th><th>Seats</th><th>Unlocks</th></tr></thead>
+    <tbody>
+      <tr><td>Community</td><td>1</td><td>Everything local: the repository, staging, Pulse. A personal organization.</td></tr>
+      <tr><td>Pro</td><td>up to 2</td><td>Invite people and assign roles; shared workspaces for the whole organization.</td></tr>
+      <tr><td>Advanced</td><td>up to 10</td><td>Teams, and workspaces only a team sees; one verified email domain that joins people on sign-in.</td></tr>
+      <tr><td>Business</td><td>up to 100</td><td>Any number of verified domains; Insights and the Lead role; audit log export.</td></tr>
+      <tr><td>Enterprise</td><td>unlimited</td><td>Custom contract and a support SLA.</td></tr>
+    </tbody>
+  </table>
+  <p>The plan is an <a href="https://logicsrc.com/openaccess">OpenAccess</a> entitlement: buy it once for a principal and every app that honours the product hears about it. See <a href="/pricing">plans</a>.</p>
+
+  <h2>Where the terminal fits</h2>
+  <ul>
+    <li><code>g1tz login</code> asks the server for a code, prints it with a link, and waits. You approve it in a signed-in browser. The terminal receives a 90-day token and keeps it in <code>~/.config/g1tz/cloud.json</code>, mode 600.</li>
+    <li><code>t</code> in the TUI opens the Team screen: members with roles, teams, workspaces with their repositories, seats, and which features the plan unlocks.</li>
+    <li>Every change is a command: <code>g1tz members</code>, <code>g1tz teams</code>, <code>g1tz workspaces</code>, <code>g1tz plan</code>, <code>g1tz audit</code>. <code>--json</code> prints the server's answer.</li>
+    <li>The same operations run the account page, so nothing the browser can do is missing from the terminal.</li>
+  </ul>
+
+  <footer>g1tz is MIT-licensed and built on <a href="https://hqtui.com">hqtui</a>. <a href="/.well-known/openaccess.json">OpenAccess descriptor</a>.</footer>
+</main>
+</body>
+</html>

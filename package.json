@@ -1,7 +1,7 @@
 {
   "name": "@profullstack/g1tz",
-  "version": "0.2.2",
-  "description": "A git TUI that shows you the repository, not a menu of git commands.",
+  "version": "0.3.0",
+  "description": "A git TUI that shows you the repository, not a menu of git commands. Teams: organizations, roles, seats, shared workspaces.",
   "license": "MIT",
   "type": "module",
   "homepage": "https://github.com/profullstack/g1tz",
@@ -21,15 +21,19 @@
   },
   "scripts": {
     "start": "bun src/main.ts",
+    "start:server": "bun server/server.ts",
     "build": "bun x tsc -p tsconfig.json",
-    "typecheck": "bun x tsc -p tsconfig.json --noEmit",
-    "test": "bun test test",
+    "typecheck": "bun x tsc -p tsconfig.json --noEmit && bun x tsc -p server/tsconfig.json",
+    "test": "bun test test server/test",
+    "test:tui": "bun test test",
+    "test:server": "bun test server/test",
     "prepublishOnly": "bun run build"
   },
   "dependencies": {
     "@profullstack/hqtui": "^0.6.0"
   },
   "devDependencies": {
+    "@types/bun": "^1.4.2",
     "@types/node": "^26",
     "typescript": "^7.0.2"
   },
