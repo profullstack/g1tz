@@ -6,6 +6,16 @@
 
 A git TUI that shows you the repository, not a menu of git commands.
 
+## Install
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/profullstack/g1tz/main/install.sh | sh
+```
+
+That installs the `g1tz` command into `~/.local` (no root). It uses your Node 22+ if you have one,
+otherwise it fetches an official Node build (checksum verified) into `~/.local/share/g1tz`. Re-run it
+to upgrade; remove it with `sh ~/.local/share/g1tz/uninstall.sh`.
+
 ## Quick start
 
 Run g1tz inside an existing Git repository, or pass the path to one:
