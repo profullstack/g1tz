@@ -10,6 +10,7 @@
 import { existsSync, statSync } from "node:fs";
 import { dirname, join, normalize, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { footerHtml, latestTemplate } from "@profullstack/footer";
 import { Accounts } from "./accounts.ts";
 import { createApi } from "./api.ts";
 import { mailer, type Mailer } from "./mail.ts";
@@ -64,6 +65,10 @@ export function serve(options: ServeOptions = {}) {
         ? request.headers.get("x-real-ip") || bunServer.requestIP(request)?.address || "unknown"
         : bunServer.requestIP(request)?.address || "unknown";
       if (url.pathname === "/healthz") return new Response("ok", { headers: { "content-type": "text/plain", "cache-control": "no-store" } });
+      if (url.pathname === "/assets/pfs-footer.css") {
+        const template = await latestTemplate();
+        return new Response(template.css, { headers: { "content-type": "text/css; charset=utf-8", "cache-control": "public, max-age=300" } });
+      }
       if (url.pathname === "/.well-known/openaccess.json") {
         return Response.json(descriptor(origin, hub), { headers: { "cache-control": "public, max-age=300", "access-control-allow-origin": "*" } });
       }
@@ -91,7 +96,24 @@ export function serve(options: ServeOptions = {}) {
       if (!file) return new Response("Not found", { status: 404, headers: { "content-type": "text/plain", ...secure } });
       const ext = file.slice(file.lastIndexOf("."));
       const page = url.pathname === "/account" || url.pathname === "/admin";
-      return new Response(Bun.file(file), {
+      const body = ext === ".html"
+        ? (await Bun.file(file).text())
+          .replace("</head>", '<link rel="stylesheet" href="/assets/pfs-footer.css"></head>')
+          .replace("</body>", `${await footerHtml({
+            site: `${origin}/`,
+            owner: { name: "g1tz", url: "https://g1tz.hqtui.com/" },
+            tagline: "MIT licensed · built on hqtui",
+            css: false,
+            subscribe: false,
+            links: [
+              { label: "Plans", href: "/pricing" },
+              { label: "Account", href: "/account" },
+              { label: "OpenAccess descriptor", href: "/.well-known/openaccess.json" },
+              { label: "GitHub", href: "https://github.com/profullstack/g1tz" },
+            ],
+          })}</body>`)
+        : Bun.file(file);
+      return new Response(body, {
         headers: {
           "content-type": TYPES[ext] ?? "application/octet-stream",
           "cache-control": page ? "no-store" : ext === ".html" ? "public, max-age=0, must-revalidate" : "public, max-age=300",
