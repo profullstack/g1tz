@@ -30,6 +30,7 @@
     "prepublishOnly": "bun run build"
   },
   "dependencies": {
+    "@profullstack/footer": "latest",
     "@profullstack/hqtui": "^0.6.0"
   },
   "devDependencies": {

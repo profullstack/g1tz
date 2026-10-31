@@ -5,6 +5,7 @@
     "": {
       "name": "g1tz",
       "dependencies": {
+        "@profullstack/footer": "latest",
         "@profullstack/hqtui": "^0.6.0",
       },
       "devDependencies": {
@@ -15,6 +16,8 @@
     },
   },
   "packages": {
+    "@profullstack/footer": ["@profullstack/footer@0.6.9", "", { "peerDependencies": { "react": ">=18" }, "optionalPeers": ["react"], "bin": { "profullstack-footer": "bin/profullstack-footer.js" } }, "sha512-IlLCHq4QHXI6Vj+69o+AC4ZNVSxr/9l+ycC/+Fv3dr5wie8d2mUT/b3go5HH+JmJArW6qE+pa/pRmWJAs0JoYg=="],
+
     "@profullstack/hqtui": ["@profullstack/hqtui@0.6.0", "", { "bin": { "hqtui": "bin/hqtui.mjs" } }, "sha512-jUFockH6yWeE48xD4gOKINPGzUmShn5k8c6Wqv/apkxI8CIJW4ieGZx5Co+ltD/CGqnGEVnXUbUu5SlNpfBdfQ=="],
 
     "@types/bun": ["@types/bun@1.4.2", "", { "dependencies": { "bun-types": "1.4.2" } }, "sha512-GimotNn7+ZV0uVArItBbriZsR1oNf0+WTzPkdcFrzShI7k2norL0uzEaJT8T33dWr7O/c9ZDuAFQrctKCi72oQ=="],
