@@ -99,3 +99,17 @@ test("logout ends the session", async () => {
   const after = await fay.fetch("/api/v1/me");
   expect(((await after.json()) as { user: unknown }).user).toBeNull();
 });
+
+test("robots.txt names the sitemap, and the sitemap lists the public pages on this origin", async () => {
+  const robots = await h.anonymous().fetch("/robots.txt");
+  expect(robots.status).toBe(200);
+  expect(robots.headers.get("content-type")).toBe("text/plain; charset=utf-8");
+  expect(await robots.text()).toContain(`Sitemap: ${h.origin}/sitemap.xml`);
+  const sitemap = await h.anonymous().fetch("/sitemap.xml");
+  expect(sitemap.status).toBe(200);
+  expect(sitemap.headers.get("content-type")).toBe("application/xml; charset=utf-8");
+  const xml = await sitemap.text();
+  expect(xml).toContain(`<loc>${h.origin}/</loc>`);
+  expect(xml).toContain(`<loc>${h.origin}/pricing</loc>`);
+  expect(xml).not.toContain("/account");
+});
