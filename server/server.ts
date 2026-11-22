@@ -32,6 +32,14 @@ function resolve(pathname: string): string | null {
   return null;
 }
 
+/** The public pages, as paths: the account page is a sign-in form and stays out. */
+export const PUBLIC_PAGES = ["/", "/pricing"];
+
+export function sitemap(origin: string): string {
+  const urls = PUBLIC_PAGES.map((path) => `  <url><loc>${origin}${path}</loc></url>`).join("\n");
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
+}
+
 const TYPES: Record<string, string> = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".txt": "text/plain; charset=utf-8", ".json": "application/json", ".md": "text/markdown; charset=utf-8" };
 
 export interface ServeOptions {
@@ -68,6 +76,12 @@ export function serve(options: ServeOptions = {}) {
       if (url.pathname === "/assets/pfs-footer.css") {
         const template = await latestTemplate();
         return new Response(template.css, { headers: { "content-type": "text/css; charset=utf-8", "cache-control": "public, max-age=300" } });
+      }
+      if (url.pathname === "/robots.txt") {
+        return new Response(`User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /account\nDisallow: /admin\n\nSitemap: ${origin}/sitemap.xml\n`, { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=3600", ...secure } });
+      }
+      if (url.pathname === "/sitemap.xml") {
+        return new Response(sitemap(origin), { headers: { "content-type": "application/xml; charset=utf-8", "cache-control": "public, max-age=3600", ...secure } });
       }
       if (url.pathname === "/.well-known/openaccess.json") {
         return Response.json(descriptor(origin, hub), { headers: { "cache-control": "public, max-age=300", "access-control-allow-origin": "*" } });
